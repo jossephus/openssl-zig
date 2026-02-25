@@ -10,8 +10,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
         .name = "openssl",
+        .linkage = .static,
         .root_module = mod_openssl,
     });
 
