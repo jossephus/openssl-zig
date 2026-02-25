@@ -7,22 +7,53 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        targets:
-          - aarch64-linux-gnu
-          - aarch64-linux
-          - riscv64-linux-musl
-          - powerpc64-linux
-          - aarch64-windows
+        include:
+          - target: aarch64-linux-gnu
+          - target: aarch64-linux
+          - target: riscv64-linux-musl
+          - target: powerpc64-linux
+          - target: aarch64-windows
+          # Android targets (requires NDK)
+          - target: aarch64-linux-android
+            android_api: "28"
+          - target: arm-linux-androideabi
+            android_api: "28"
+          - target: x86_64-linux-android
+            android_api: "28"
+          - target: x86-linux-android
+            android_api: "28"
+          - target: riscv64-linux-android
+            android_api: "35"
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: mlugg/setup-zig@v2
 #        with:
 #          version: master
-      - name: Build Summary ${{ matrix.targets }}
-        run: zig build --summary all -freference-trace -Dtarget=${{ matrix.targets }}
-      - name: Build Summary - Zig Package ${{ matrix.targets }}
-        run: zig build --build-file $PWD/test_zigpkg/build.zig --summary all -freference-trace -Dtarget=${{ matrix.targets }}
+
+      - name: Setup Android NDK
+        if: contains(matrix.target, 'android')
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r29
+          local-cache: true
+      
+      - name: Build Summary ${{ matrix.target }}
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          ARGS="-Dtarget=${{ matrix.target }}"
+          if [ -n "${{ matrix.android_api }}" ]; then
+            ARGS="$ARGS -Dandroid-api-level=${{ matrix.android_api }}"
+          fi
+          zig build --summary all -freference-trace $ARGS
+      - name: Build Summary - Zig Package ${{ matrix.target }}
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          ARGS="-Dtarget=${{ matrix.target }}"
+          zig build --build-file $PWD/test_zigpkg/build.zig --summary all -freference-trace $ARGS
