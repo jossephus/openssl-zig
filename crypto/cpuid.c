@@ -175,7 +175,7 @@ unsigned int OPENSSL_ia32cap_P[OPENSSL_IA32CAP_P_MAX_INDEXES];
 # endif
 #endif
 
-#ifndef OPENSSL_CPUID_OBJ
+#if !defined(OPENSSL_CPUID_OBJ) || defined(OPENSSL_NO_ASM)
 # ifndef OPENSSL_CPUID_SETUP
 void OPENSSL_cpuid_setup(void)
 {

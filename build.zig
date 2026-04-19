@@ -55,6 +55,15 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     lib.root_module.addCMacro("OPENSSL_NO_STDIO", "");
     lib.root_module.addCMacro("OPENSSL_NO_JITTER", "");
     lib.root_module.addCMacro("OPENSSL_NO_EC_NISTP_64_GCC_128", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ML_DSA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SLH_DSA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ML_KEM", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ARIA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_MDC2", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM2", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM3", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM4", "");
+    lib.root_module.addCMacro("OPENSSL_NO_WHIRLPOOL", "");
     lib.root_module.addCMacro("OPENSSLDIR", "\"/usr/local/ssl\"");
     lib.root_module.addCMacro("ENGINESDIR", "\"/usr/local/lib/engines\"");
     lib.root_module.addCMacro("MODULESDIR", "\"/usr/local/lib/ossl-modules\"");
@@ -70,6 +79,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         .files = switch (lib.rootModuleTarget().cpu.arch) {
             .arm, .aarch64 => &.{
                 "crypto/armcap.c",
+                "crypto/cpuid.c",
             },
             .powerpc => &.{
                 "crypto/ppccap.c",
@@ -121,7 +131,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/aes/aes_ofb.c",
             "crypto/aes/aes_wrap.c",
             "crypto/aes/aes_x86core.c",
-            "crypto/aria/aria.c",
+            // "crypto/aria/aria.c", // Disabled - not used by SSH
             "crypto/asn1/a_bitstr.c",
             "crypto/asn1/a_d2i_fp.c",
             "crypto/asn1/a_digest.c",
@@ -508,7 +518,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/evp/e_aes.c",
             "crypto/evp/e_aes_cbc_hmac_sha1.c",
             "crypto/evp/e_aes_cbc_hmac_sha256.c",
-            "crypto/evp/e_aria.c",
+            // "crypto/evp/e_aria.c", // Disabled - not used by SSH
             "crypto/evp/e_bf.c",
             "crypto/evp/e_camellia.c",
             "crypto/evp/e_cast.c",
@@ -521,9 +531,9 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/evp/e_rc2.c",
             "crypto/evp/e_rc4.c",
             "crypto/evp/e_rc4_hmac_md5.c",
-            "crypto/evp/e_rc5.c",
+            // "crypto/evp/e_rc5.c",
             "crypto/evp/e_seed.c",
-            "crypto/evp/e_sm4.c",
+            // "crypto/evp/e_sm4.c",
             "crypto/evp/e_xcbc_d.c",
             "crypto/evp/ec_ctrl.c",
             "crypto/evp/ec_support.c",
@@ -533,7 +543,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/evp/evp_err.c",
             "crypto/evp/evp_fetch.c",
             "crypto/evp/evp_key.c",
-            // "crypto/evp/evp_lib.c",
+            "crypto/evp/evp_lib.c",
             "crypto/evp/evp_pbe.c",
             "crypto/evp/evp_pkey.c",
             "crypto/evp/evp_rand.c",
@@ -549,10 +559,10 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/evp/legacy_md4.c",
             "crypto/evp/legacy_md5.c",
             "crypto/evp/legacy_md5_sha1.c",
-            "crypto/evp/legacy_mdc2.c",
+            // "crypto/evp/legacy_mdc2.c", // Disabled
             "crypto/evp/legacy_ripemd.c",
             "crypto/evp/legacy_sha.c",
-            "crypto/evp/legacy_wp.c",
+            // "crypto/evp/legacy_wp.c", // Disabled
             "crypto/evp/m_null.c",
             "crypto/evp/m_sigver.c",
             "crypto/evp/mac_lib.c",
@@ -572,7 +582,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/evp/pmeth_check.c",
             "crypto/evp/pmeth_gn.c",
             "crypto/evp/pmeth_lib.c",
-            // "crypto/evp/signature.c",
+            "crypto/evp/signature.c",
             "crypto/ex_data.c",
             "crypto/ffc/ffc_backend.c",
             "crypto/ffc/ffc_dh.c",
@@ -607,8 +617,8 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/md5/md5_dgst.c",
             "crypto/md5/md5_one.c",
             "crypto/md5/md5_sha1.c",
-            "crypto/mdc2/mdc2_one.c",
-            "crypto/mdc2/mdc2dgst.c",
+            // "crypto/mdc2/mdc2_one.c", // Disabled - not used by SSH
+            // "crypto/mdc2/mdc2dgst.c",
             "crypto/mem.c",
             "crypto/mem_clr.c",
             "crypto/mem_sec.c",
@@ -765,15 +775,15 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/sha/sha3.c",
             "crypto/sha/sha512.c",
             "crypto/sha/sha_ppc.c",
-            "crypto/siphash/siphash.c",
+            // "crypto/siphash/siphash.c", // Disabled - not used by SSH
             "crypto/sleep.c",
-            "crypto/sm2/sm2_crypt.c",
-            "crypto/sm2/sm2_err.c",
-            "crypto/sm2/sm2_key.c",
-            "crypto/sm2/sm2_sign.c",
-            "crypto/sm3/legacy_sm3.c",
-            "crypto/sm3/sm3.c",
-            "crypto/sm4/sm4.c",
+            // "crypto/sm2/sm2_crypt.c", // Disabled - not used by SSH
+            // "crypto/sm2/sm2_err.c",
+            // "crypto/sm2/sm2_key.c",
+            // "crypto/sm2/sm2_sign.c",
+            // "crypto/sm3/legacy_sm3.c",
+            // "crypto/sm3/sm3.c",
+            // "crypto/sm4/sm4.c",
             "crypto/sparse_array.c",
             "crypto/srp/srp_lib.c",
             "crypto/srp/srp_vfy.c",
@@ -792,7 +802,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
                 "crypto/thread/arch/thread_win.c"
             else
                 "crypto/thread/arch/thread_posix.c",
-            // "crypto/thread/internal.c",
+            "crypto/thread/internal.c",
             "crypto/threads_lib.c",
             "crypto/threads_none.c",
             if (lib.rootModuleTarget().os.tag == .windows)
@@ -819,8 +829,8 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/ui/ui_openssl.c",
             "crypto/ui/ui_util.c",
             "crypto/uid.c",
-            "crypto/whrlpool/wp_block.c",
-            "crypto/whrlpool/wp_dgst.c",
+            // "crypto/whrlpool/wp_block.c", // Disabled - not used by SSH
+            // "crypto/whrlpool/wp_dgst.c",
             "crypto/x509/by_dir.c",
             "crypto/x509/by_file.c",
             "crypto/x509/by_store.c",
@@ -923,26 +933,26 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
             "crypto/hashtable/hashfunc.c",
             "crypto/hashtable/hashtable.c",
             "crypto/indicator_core.c",
-            "crypto/ml_dsa/ml_dsa_encoders.c",
-            "crypto/ml_dsa/ml_dsa_key_compress.c",
-            "crypto/ml_dsa/ml_dsa_key.c",
-            "crypto/ml_dsa/ml_dsa_matrix.c",
-            "crypto/ml_dsa/ml_dsa_ntt.c",
-            "crypto/ml_dsa/ml_dsa_params.c",
-            "crypto/ml_dsa/ml_dsa_sample.c",
-            "crypto/ml_dsa/ml_dsa_sign.c",
-            "crypto/ml_kem/ml_kem.c",
+            // "crypto/ml_dsa/ml_dsa_encoders.c", // disabled with OPENSSL_NO_ML_DSA
+            // "crypto/ml_dsa/ml_dsa_key_compress.c",
+            // "crypto/ml_dsa/ml_dsa_key.c",
+            // "crypto/ml_dsa/ml_dsa_matrix.c",
+            // "crypto/ml_dsa/ml_dsa_ntt.c",
+            // "crypto/ml_dsa/ml_dsa_params.c",
+            // "crypto/ml_dsa/ml_dsa_sample.c",
+            // "crypto/ml_dsa/ml_dsa_sign.c",
+            // "crypto/ml_kem/ml_kem.c", // disabled with OPENSSL_NO_ML_KEM
             "crypto/rand/rand_uniform.c",
-            "crypto/slh_dsa/slh_adrs.c",
-            "crypto/slh_dsa/slh_dsa_hash_ctx.c",
-            "crypto/slh_dsa/slh_dsa_key.c",
-            "crypto/slh_dsa/slh_dsa.c",
-            "crypto/slh_dsa/slh_fors.c",
-            "crypto/slh_dsa/slh_hash.c",
-            "crypto/slh_dsa/slh_hypertree.c",
-            "crypto/slh_dsa/slh_params.c",
-            "crypto/slh_dsa/slh_wots.c",
-            "crypto/slh_dsa/slh_xmss.c",
+            // "crypto/slh_dsa/slh_adrs.c", // disabled with OPENSSL_NO_SLH_DSA
+            // "crypto/slh_dsa/slh_dsa_hash_ctx.c",
+            // "crypto/slh_dsa/slh_dsa_key.c",
+            // "crypto/slh_dsa/slh_dsa.c",
+            // "crypto/slh_dsa/slh_fors.c",
+            // "crypto/slh_dsa/slh_hash.c",
+            // "crypto/slh_dsa/slh_hypertree.c",
+            // "crypto/slh_dsa/slh_params.c",
+            // "crypto/slh_dsa/slh_wots.c",
+            // "crypto/slh_dsa/slh_xmss.c",
             "crypto/ssl_err.c",
             "crypto/x509/t_acert.c",
             "crypto/x509/x_ietfatt.c",
@@ -1105,6 +1115,15 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     lib.root_module.addCMacro("OPENSSL_NO_ASM", "");
     lib.root_module.addCMacro("OPENSSL_NO_KTLS", "");
     lib.root_module.addCMacro("OPENSSL_NO_QUIC", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ML_DSA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SLH_DSA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ML_KEM", "");
+    lib.root_module.addCMacro("OPENSSL_NO_ARIA", "");
+    lib.root_module.addCMacro("OPENSSL_NO_MDC2", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM2", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM3", "");
+    lib.root_module.addCMacro("OPENSSL_NO_SM4", "");
+    lib.root_module.addCMacro("OPENSSL_NO_WHIRLPOOL", "");
     lib.root_module.addCMacro("OPENSSL_CPUID_OBJ", "");
     if (lib.rootModuleTarget().os.tag.isDarwin()) {
         // CommonCrypto
@@ -1128,7 +1147,7 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
     lib.root_module.addCSourceFiles(.{
         .files = &.{
-            "include_gen/der/der_sm2_gen.c",
+            // "include_gen/der/der_sm2_gen.c", // Disabled with OPENSSL_NO_SM2
             "include_gen/der/der_digests_gen.c",
             "include_gen/der/der_dsa_gen.c",
             "include_gen/der/der_ec_gen.c",
@@ -1145,8 +1164,8 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/common/der/der_ecx_key.c",
             "providers/common/der/der_rsa_key.c",
             "providers/common/der/der_rsa_sig.c",
-            "providers/common/der/der_sm2_key.c",
-            "providers/common/der/der_sm2_sig.c",
+            // "providers/common/der/der_sm2_key.c", // Disabled with OPENSSL_NO_SM2
+            // "providers/common/der/der_sm2_sig.c",
             "providers/common/digest_to_nid.c",
             "providers/common/provider_ctx.c",
             "providers/common/provider_err.c",
@@ -1161,7 +1180,7 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             // "providers/fips/self_test.c",
             // "providers/fips/self_test_kats.c",
             "providers/implementations/asymciphers/rsa_enc.c",
-            "providers/implementations/asymciphers/sm2_enc.c",
+            // "providers/implementations/asymciphers/sm2_enc.c", // Disabled with OPENSSL_NO_SM2
             "providers/implementations/ciphers/cipher_aes.c",
             "providers/implementations/ciphers/cipher_aes_cbc_hmac_sha.c",
             "providers/implementations/ciphers/cipher_aes_cbc_hmac_sha1_hw.c",
@@ -1182,47 +1201,46 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/implementations/ciphers/cipher_aes_xts.c",
             "providers/implementations/ciphers/cipher_aes_xts_fips.c",
             "providers/implementations/ciphers/cipher_aes_xts_hw.c",
-            "providers/implementations/ciphers/cipher_aria.c",
-            "providers/implementations/ciphers/cipher_aria_ccm.c",
-            "providers/implementations/ciphers/cipher_aria_ccm_hw.c",
-            "providers/implementations/ciphers/cipher_aria_gcm.c",
-            "providers/implementations/ciphers/cipher_aria_gcm_hw.c",
-            "providers/implementations/ciphers/cipher_aria_hw.c",
-            "providers/implementations/ciphers/cipher_blowfish.c",
-            "providers/implementations/ciphers/cipher_blowfish_hw.c",
+            // "providers/implementations/ciphers/cipher_aria.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_aria_ccm.c",
+            // "providers/implementations/ciphers/cipher_aria_ccm_hw.c",
+            // "providers/implementations/ciphers/cipher_aria_gcm.c",
+            // "providers/implementations/ciphers/cipher_aria_gcm_hw.c",
+            // "providers/implementations/ciphers/cipher_aria_hw.c",
+            // "providers/implementations/ciphers/cipher_blowfish.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_blowfish_hw.c",
             "providers/implementations/ciphers/cipher_camellia.c",
             "providers/implementations/ciphers/cipher_camellia_hw.c",
-            "providers/implementations/ciphers/cipher_cast5.c",
-            "providers/implementations/ciphers/cipher_cast5_hw.c",
+            // "providers/implementations/ciphers/cipher_cast5.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_cast5_hw.c",
             "providers/implementations/ciphers/cipher_chacha20.c",
             "providers/implementations/ciphers/cipher_chacha20_hw.c",
+            "providers/implementations/ciphers/cipher_chacha20_poly1305.c",
             "providers/implementations/ciphers/cipher_chacha20_poly1305_hw.c",
             "providers/implementations/ciphers/cipher_cts.c",
             "providers/implementations/ciphers/cipher_des.c",
             "providers/implementations/ciphers/cipher_des_hw.c",
             "providers/implementations/ciphers/cipher_desx.c",
             "providers/implementations/ciphers/cipher_desx_hw.c",
-            "providers/implementations/ciphers/cipher_idea.c",
-            "providers/implementations/ciphers/cipher_idea_hw.c",
+            // "providers/implementations/ciphers/cipher_idea.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_idea_hw.c",
             "providers/implementations/ciphers/cipher_null.c",
-            // "providers/implementations/ciphers/cipher_rc2.c",
-            // "providers/implementations/ciphers/cipher_rc2_hw.c",
-            "providers/implementations/ciphers/cipher_rc4.c",
-            "providers/implementations/ciphers/cipher_rc4_hmac_md5.c",
-            "providers/implementations/ciphers/cipher_rc4_hmac_md5_hw.c",
-            "providers/implementations/ciphers/cipher_rc4_hw.c",
+            // "providers/implementations/ciphers/cipher_rc4.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_rc4_hmac_md5.c",
+            // "providers/implementations/ciphers/cipher_rc4_hmac_md5_hw.c",
+            // "providers/implementations/ciphers/cipher_rc4_hw.c",
             // "providers/implementations/ciphers/cipher_rc5.c",
             // "providers/implementations/ciphers/cipher_rc5_hw.c",
-            "providers/implementations/ciphers/cipher_seed.c",
-            "providers/implementations/ciphers/cipher_seed_hw.c",
-            "providers/implementations/ciphers/cipher_sm4.c",
-            "providers/implementations/ciphers/cipher_sm4_ccm.c",
-            "providers/implementations/ciphers/cipher_sm4_ccm_hw.c",
-            "providers/implementations/ciphers/cipher_sm4_gcm.c",
-            "providers/implementations/ciphers/cipher_sm4_gcm_hw.c",
-            "providers/implementations/ciphers/cipher_sm4_hw.c",
-            "providers/implementations/ciphers/cipher_sm4_xts.c",
-            "providers/implementations/ciphers/cipher_sm4_xts_hw.c",
+            // "providers/implementations/ciphers/cipher_seed.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_seed_hw.c",
+            // "providers/implementations/ciphers/cipher_sm4.c", // Not used by SSH
+            // "providers/implementations/ciphers/cipher_sm4_ccm.c",
+            // "providers/implementations/ciphers/cipher_sm4_ccm_hw.c",
+            // "providers/implementations/ciphers/cipher_sm4_gcm.c",
+            // "providers/implementations/ciphers/cipher_sm4_gcm_hw.c",
+            // "providers/implementations/ciphers/cipher_sm4_hw.c",
+            // "providers/implementations/ciphers/cipher_sm4_xts.c",
+            // "providers/implementations/ciphers/cipher_sm4_xts_hw.c",
             "providers/implementations/ciphers/cipher_tdes.c",
             "providers/implementations/ciphers/cipher_tdes_common.c",
             "providers/implementations/ciphers/cipher_tdes_default.c",
@@ -1230,7 +1248,10 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/implementations/ciphers/cipher_tdes_hw.c",
             "providers/implementations/ciphers/cipher_tdes_wrap.c",
             "providers/implementations/ciphers/cipher_tdes_wrap_hw.c",
+            "providers/implementations/ciphers/ciphercommon.c",
             "providers/implementations/ciphers/ciphercommon_block.c",
+            "ssl/record/methods/ssl3_cbc.c",
+            "ssl/record/methods/tls_pad.c",
             "providers/implementations/ciphers/ciphercommon_ccm.c",
             "providers/implementations/ciphers/ciphercommon_ccm_hw.c",
             "providers/implementations/ciphers/ciphercommon_gcm.c",
@@ -1244,13 +1265,13 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/implementations/digests/md4_prov.c",
             "providers/implementations/digests/md5_prov.c",
             "providers/implementations/digests/md5_sha1_prov.c",
-            "providers/implementations/digests/mdc2_prov.c",
+            // "providers/implementations/digests/mdc2_prov.c", // Not used by SSH
             "providers/implementations/digests/null_prov.c",
-            "providers/implementations/digests/ripemd_prov.c",
+            // "providers/implementations/digests/ripemd_prov.c", // Disabled
             "providers/implementations/digests/sha2_prov.c",
             "providers/implementations/digests/sha3_prov.c",
-            "providers/implementations/digests/sm3_prov.c",
-            "providers/implementations/digests/wp_prov.c",
+            // "providers/implementations/digests/sm3_prov.c", // Not used by SSH
+            // "providers/implementations/digests/wp_prov.c", // Disabled
             "providers/implementations/encode_decode/decode_der2key.c",
             "providers/implementations/encode_decode/decode_epki2pki.c",
             "providers/implementations/encode_decode/decode_msblob2key.c",
@@ -1300,7 +1321,7 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/implementations/macs/hmac_prov.c",
             "providers/implementations/macs/kmac_prov.c",
             "providers/implementations/macs/poly1305_prov.c",
-            "providers/implementations/macs/siphash_prov.c",
+            // "providers/implementations/macs/siphash_prov.c", // Disabled
             "providers/implementations/rands/drbg.c",
             "providers/implementations/rands/drbg_ctr.c",
             "providers/implementations/rands/drbg_hash.c",
@@ -1313,13 +1334,13 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
                 "providers/implementations/rands/seeding/rand_unix.c",
             // "providers/implementations/rands/seeding/rand_vms.c",
             // "providers/implementations/rands/seeding/rand_vxworks.c",
-            // "providers/implementations/rands/test_rng.c",
+            "providers/implementations/rands/test_rng.c",
             "providers/implementations/signature/dsa_sig.c",
             "providers/implementations/signature/ecdsa_sig.c",
             "providers/implementations/signature/eddsa_sig.c",
             "providers/implementations/signature/mac_legacy_sig.c",
             "providers/implementations/signature/rsa_sig.c",
-            "providers/implementations/signature/sm2_sig.c",
+            // "providers/implementations/signature/sm2_sig.c", // Disabled with OPENSSL_NO_SM2
             "providers/implementations/storemgmt/file_store.c",
             "providers/implementations/storemgmt/file_store_any2obj.c",
             // "providers/implementations/storemgmt/winstore_store.c",
@@ -1332,12 +1353,13 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
             "providers/implementations/ciphers/cipher_aes_cbc_hmac_sha256_etm_hw.c",
             "providers/implementations/ciphers/cipher_aes_cbc_hmac_sha512_etm_hw.c",
             "providers/implementations/encode_decode/ml_common_codecs.c",
-            "providers/implementations/encode_decode/ml_dsa_codecs.c",
-            "providers/implementations/encode_decode/ml_kem_codecs.c",
-            "providers/implementations/kem/ml_kem_kem.c",
-            "providers/implementations/kem/mlx_kem.c",
-            "providers/implementations/keymgmt/mlx_kmgmt.c",
-            "providers/implementations/keymgmt/slh_dsa_kmgmt.c",
+            // "providers/implementations/encode_decode/ml_dsa_codecs.c", // disabled with OPENSSL_NO_ML_DSA
+            // "providers/implementations/encode_decode/ml_kem_codecs.c", // disabled with OPENSSL_NO_ML_KEM
+            // "providers/implementations/kem/ml_kem_kem.c",
+            // "providers/implementations/kem/mlx_kem.c",
+            // "providers/implementations/keymgmt/mlx_kmgmt.c",
+            // "providers/implementations/keymgmt/slh_dsa_kmgmt.c", // disabled with OPENSSL_NO_SLH_DSA
+            // "providers/implementations/keymgmt/ml_dsa_kmgmt.c", // disabled with OPENSSL_NO_ML_DSA
             // "providers/implementations/signature/ml_dsa_sig.c", // requires generated der_ml_dsa.h
             // "providers/implementations/signature/slh_dsa_sig.c", // requires generated der_slh_dsa.h
             "providers/implementations/skeymgmt/aes_skmgmt.c",

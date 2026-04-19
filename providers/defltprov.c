@@ -154,9 +154,9 @@ static const OSSL_ALGORITHM deflt_digests[] = {
     { PROV_NAMES_MD5_SHA1, "provider=default", ossl_md5_sha1_functions },
 #endif /* OPENSSL_NO_MD5 */
 
-#ifndef OPENSSL_NO_RMD160
-    { PROV_NAMES_RIPEMD_160, "provider=default", ossl_ripemd160_functions },
-#endif /* OPENSSL_NO_RMD160 */
+    /* RIPEMD disabled - not used by SSH */
+#if 0
+#endif
 
     { PROV_NAMES_NULL, "provider=default", ossl_nullmd_functions },
     { NULL, NULL, NULL }
@@ -247,35 +247,9 @@ static const OSSL_ALGORITHM_CAPABLE deflt_ciphers[] = {
          ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
     ALGC(PROV_NAMES_AES_256_CBC_HMAC_SHA512_ETM, ossl_aes256cbc_hmac_sha512_etm_functions,
          ossl_cipher_capable_aes_cbc_hmac_sha512_etm),
-#ifndef OPENSSL_NO_ARIA
-    ALG(PROV_NAMES_ARIA_256_GCM, ossl_aria256gcm_functions),
-    ALG(PROV_NAMES_ARIA_192_GCM, ossl_aria192gcm_functions),
-    ALG(PROV_NAMES_ARIA_128_GCM, ossl_aria128gcm_functions),
-    ALG(PROV_NAMES_ARIA_256_CCM, ossl_aria256ccm_functions),
-    ALG(PROV_NAMES_ARIA_192_CCM, ossl_aria192ccm_functions),
-    ALG(PROV_NAMES_ARIA_128_CCM, ossl_aria128ccm_functions),
-    ALG(PROV_NAMES_ARIA_256_ECB, ossl_aria256ecb_functions),
-    ALG(PROV_NAMES_ARIA_192_ECB, ossl_aria192ecb_functions),
-    ALG(PROV_NAMES_ARIA_128_ECB, ossl_aria128ecb_functions),
-    ALG(PROV_NAMES_ARIA_256_CBC, ossl_aria256cbc_functions),
-    ALG(PROV_NAMES_ARIA_192_CBC, ossl_aria192cbc_functions),
-    ALG(PROV_NAMES_ARIA_128_CBC, ossl_aria128cbc_functions),
-    ALG(PROV_NAMES_ARIA_256_OFB, ossl_aria256ofb_functions),
-    ALG(PROV_NAMES_ARIA_192_OFB, ossl_aria192ofb_functions),
-    ALG(PROV_NAMES_ARIA_128_OFB, ossl_aria128ofb_functions),
-    ALG(PROV_NAMES_ARIA_256_CFB, ossl_aria256cfb_functions),
-    ALG(PROV_NAMES_ARIA_192_CFB, ossl_aria192cfb_functions),
-    ALG(PROV_NAMES_ARIA_128_CFB, ossl_aria128cfb_functions),
-    ALG(PROV_NAMES_ARIA_256_CFB1, ossl_aria256cfb1_functions),
-    ALG(PROV_NAMES_ARIA_192_CFB1, ossl_aria192cfb1_functions),
-    ALG(PROV_NAMES_ARIA_128_CFB1, ossl_aria128cfb1_functions),
-    ALG(PROV_NAMES_ARIA_256_CFB8, ossl_aria256cfb8_functions),
-    ALG(PROV_NAMES_ARIA_192_CFB8, ossl_aria192cfb8_functions),
-    ALG(PROV_NAMES_ARIA_128_CFB8, ossl_aria128cfb8_functions),
-    ALG(PROV_NAMES_ARIA_256_CTR, ossl_aria256ctr_functions),
-    ALG(PROV_NAMES_ARIA_192_CTR, ossl_aria192ctr_functions),
-    ALG(PROV_NAMES_ARIA_128_CTR, ossl_aria128ctr_functions),
-#endif /* OPENSSL_NO_ARIA */
+    /* ARIA disabled - not used by SSH */
+#if 0
+#endif /* 0 */
 #ifndef OPENSSL_NO_CAMELLIA
     ALG(PROV_NAMES_CAMELLIA_256_ECB, ossl_camellia256ecb_functions),
     ALG(PROV_NAMES_CAMELLIA_192_ECB, ossl_camellia192ecb_functions),
@@ -315,16 +289,9 @@ static const OSSL_ALGORITHM_CAPABLE deflt_ciphers[] = {
     ALG(PROV_NAMES_DES_EDE_OFB, ossl_tdes_ede2_ofb_functions),
     ALG(PROV_NAMES_DES_EDE_CFB, ossl_tdes_ede2_cfb_functions),
 #endif /* OPENSSL_NO_DES */
-#ifndef OPENSSL_NO_SM4
-    ALG(PROV_NAMES_SM4_GCM, ossl_sm4128gcm_functions),
-    ALG(PROV_NAMES_SM4_CCM, ossl_sm4128ccm_functions),
-    ALG(PROV_NAMES_SM4_ECB, ossl_sm4128ecb_functions),
-    ALG(PROV_NAMES_SM4_CBC, ossl_sm4128cbc_functions),
-    ALG(PROV_NAMES_SM4_CTR, ossl_sm4128ctr_functions),
-    ALG(PROV_NAMES_SM4_OFB, ossl_sm4128ofb128_functions),
-    ALG(PROV_NAMES_SM4_CFB, ossl_sm4128cfb128_functions),
-    ALG(PROV_NAMES_SM4_XTS, ossl_sm4128xts_functions),
-#endif /* OPENSSL_NO_SM4 */
+    /* SM4 disabled - not used by SSH */
+#if 0
+#endif
 #ifndef OPENSSL_NO_CHACHA
     ALG(PROV_NAMES_ChaCha20, ossl_chacha20_functions),
 # ifndef OPENSSL_NO_POLY1305
@@ -347,8 +314,8 @@ static const OSSL_ALGORITHM deflt_macs[] = {
     { PROV_NAMES_HMAC, "provider=default", ossl_hmac_functions },
     { PROV_NAMES_KMAC_128, "provider=default", ossl_kmac128_functions },
     { PROV_NAMES_KMAC_256, "provider=default", ossl_kmac256_functions },
-#ifndef OPENSSL_NO_SIPHASH
-    { PROV_NAMES_SIPHASH, "provider=default", ossl_siphash_functions },
+    /* SIPHASH disabled - not used by SSH */
+#if 0
 #endif
 #ifndef OPENSSL_NO_POLY1305
     { PROV_NAMES_POLY1305, "provider=default", ossl_poly1305_functions },

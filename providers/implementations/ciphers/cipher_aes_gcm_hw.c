@@ -132,7 +132,10 @@ static const PROV_GCM_HW aes_gcm = {
     ossl_gcm_one_shot
 };
 
-#if defined(S390X_aes_128_CAPABLE)
+/* When OPENSSL_NO_ASM is set, don't use platform-specific optimized assembly */
+#if defined(OPENSSL_NO_ASM)
+/* Fall through to generic implementation */
+#elif defined(S390X_aes_128_CAPABLE)
 # include "cipher_aes_gcm_hw_s390x.inc"
 #elif defined(AESNI_CAPABLE)
 # include "cipher_aes_gcm_hw_aesni.inc"
@@ -146,7 +149,9 @@ static const PROV_GCM_HW aes_gcm = {
 # include "cipher_aes_gcm_hw_rv64i.inc"
 #elif defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 32
 # include "cipher_aes_gcm_hw_rv32i.inc"
-#else
+#endif
+
+#if defined(OPENSSL_NO_ASM) || (!defined(S390X_aes_128_CAPABLE) && !defined(AESNI_CAPABLE) && !defined(SPARC_AES_CAPABLE) && !defined(AES_PMULL_CAPABLE) && !defined(PPC_AES_GCM_CAPABLE) && !(defined(OPENSSL_CPUID_OBJ) && defined(__riscv)))
 const PROV_GCM_HW *ossl_prov_aes_hw_gcm(size_t keybits)
 {
     return &aes_gcm;
