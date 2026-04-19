@@ -1364,7 +1364,8 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
     };
     const arch_name = switch (host_arch) {
         .x86_64 => "x86_64",
-        .aarch64 => "aarch64",
+        // NDK only provides x86_64 prebuilt tools for macOS (works on Apple Silicon via Rosetta 2)
+        .aarch64 => if (host_os == .macos) "x86_64" else "aarch64",
         .x86 => "x86",
         else => {
             std.log.err("Unsupported host arch: {s}", .{@tagName(host_arch)});
