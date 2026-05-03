@@ -1493,7 +1493,10 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
             error.OutOfMemory => return AndroidConfigError.OutOfMemory,
         };
         defer b.allocator.free(android_home);
-        ndk_home = try pickNdkFromSdkRoot(b.allocator, android_home);
+        ndk_home = pickNdkFromSdkRoot(b.allocator, android_home) catch |err| switch (err) {
+            error.OutOfMemory => return AndroidConfigError.OutOfMemory,
+            else => return AndroidConfigError.NdkPathNotFound,
+        };
         if (ndk_home == null) {
             std.log.err("Could not locate NDK under ANDROID_HOME='{s}'", .{android_home});
             return AndroidConfigError.NdkPathNotFound;
@@ -1551,7 +1554,10 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
     if (std.fs.accessAbsolute(sysroot_path, .{})) |_| {
         // path is good
     } else |_| {
-        const auto_ndk = try pickNdkFromSdkRoot(b.allocator, resolved_ndk_home);
+        const auto_ndk = pickNdkFromSdkRoot(b.allocator, resolved_ndk_home) catch |err| switch (err) {
+            error.OutOfMemory => return AndroidConfigError.OutOfMemory,
+            else => return AndroidConfigError.NdkPathNotFound,
+        };
         if (auto_ndk) |new_ndk| {
             resolved_ndk_home = new_ndk;
             b.allocator.free(sysroot_path);
