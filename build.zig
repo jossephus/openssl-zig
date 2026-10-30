@@ -41,8 +41,13 @@ pub fn build(b: *std.Build) !void {
 
     const android_api_level = b.option([]const u8, "android-api-level", "Android API Level (default: 29)") orelse "29";
 
-    const crypto = try libcrypto(b, target, optimize, android_api_level);
-    const ssl = try libssl(b, target, optimize, android_api_level);
+    const android: Android = .{
+        .api_level = android_api_level,
+        .ndk = b.option([]const u8, "android-ndk", "Android NDK root (default: $ANDROID_NDK_HOME, $ANDROID_NDK_ROOT, or $ANDROID_HOME/ndk)"),
+    };
+
+    const crypto = try libcrypto(b, target, optimize, android);
+    const ssl = try libssl(b, target, optimize, android);
 
     crypto.installHeadersDirectory(b.path("include/crypto"), "crypto", .{});
     crypto.installHeadersDirectory(b.path("include/internal"), "internal", .{});
@@ -52,7 +57,7 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(ssl);
 }
 
-fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, android_api_level: []const u8) !*std.Build.Step.Compile {
+fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize, android: Android) !*std.Build.Step.Compile {
     const lib = b.addLibrary(.{
         .name = "crypto",
         .root_module = b.createModule(.{
@@ -67,7 +72,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
     }
 
     if (target.result.abi == .android or target.result.abi == .androideabi) {
-        try ConfigureAndroidEnvironment(b, lib, target, android_api_level);
+        try ConfigureAndroidEnvironment(b, lib, target, android);
     }
 
     lib.root_module.addIncludePath(b.path("include"));
@@ -996,12 +1001,12 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         },
         .flags = cflags,
     });
-    lib.root_module.linkLibrary(try libprovider(b, target, optimize, android_api_level));
+    lib.root_module.linkLibrary(try libprovider(b, target, optimize, android));
     lib.root_module.link_libc = true;
     return lib;
 }
 
-fn libssl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, android_api_level: []const u8) !*std.Build.Step.Compile {
+fn libssl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize, android: Android) !*std.Build.Step.Compile {
     const lib = b.addLibrary(.{
         .name = "ssl",
         .root_module = b.createModule(.{
@@ -1016,7 +1021,7 @@ fn libssl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
     }
 
     if (target.result.abi == .android or target.result.abi == .androideabi) {
-        try ConfigureAndroidEnvironment(b, lib, target, android_api_level);
+        try ConfigureAndroidEnvironment(b, lib, target, android);
     }
 
     lib.root_module.addIncludePath(b.path("include"));
@@ -1121,7 +1126,7 @@ fn libssl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
     return lib;
 }
 
-fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode, android_api_level: []const u8) !*std.Build.Step.Compile {
+fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.lang.Optimize, android: Android) !*std.Build.Step.Compile {
     const lib = b.addLibrary(.{
         .name = "providers",
         .root_module = b.createModule(.{
@@ -1131,7 +1136,7 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
     });
 
     if (target.result.abi == .android or target.result.abi == .androideabi) {
-        try ConfigureAndroidEnvironment(b, lib, target, android_api_level);
+        try ConfigureAndroidEnvironment(b, lib, target, android);
     }
 
     lib.root_module.addIncludePath(b.path("include"));
@@ -1419,7 +1424,11 @@ const cflags = &.{
     "-Wno-int-conversion",
 };
 
-/// Returns an owned copy so callers can free it uniformly with other NDK paths.
+const Android = struct {
+    api_level: []const u8,
+    ndk: ?[]const u8,
+};
+
 fn envDupe(b: *std.Build, name: []const u8) error{OutOfMemory}!?[]const u8 {
     const value = b.graph.environ_map.get(name) orelse return null;
     return try b.allocator.dupe(u8, value);
@@ -1446,7 +1455,8 @@ const AndroidConfigError = error{
     OutOfMemory,
 };
 
-fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, api_level: []const u8) AndroidConfigError!void {
+fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, target: std.Build.ResolvedTarget, android: Android) AndroidConfigError!void {
+    const api_level = android.api_level;
     const api_level_int = std.fmt.parseInt(u32, api_level, 10) catch {
         std.log.err("Invalid API level format: '{s}', expected numeric string (e.g., '21')", .{api_level});
         return AndroidConfigError.InvalidApiLevel;
@@ -1465,15 +1475,18 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
         std.log.warn("API level {d} is very low, modern NDKs may not support it.", .{api_level_int});
     }
 
-    // Locating the NDK reads the environment and probes the filesystem at
-    // configure time, which the build cache cannot track.
-    b.graph.poisonCache();
     const io = b.graph.io;
 
     var ndk_home: ?[]const u8 = null;
     errdefer if (ndk_home) |p| b.allocator.free(p);
 
-    ndk_home = try envDupe(b, "ANDROID_NDK_HOME");
+    if (android.ndk) |path| {
+        ndk_home = try b.allocator.dupe(u8, path);
+        b.dependOnDirectoryContents(.{ .cwd_relative = path });
+    } else {
+        b.graph.poisonCache();
+        ndk_home = try envDupe(b, "ANDROID_NDK_HOME");
+    }
     if (ndk_home == null) {
         ndk_home = try envDupe(b, "ANDROID_NDK_ROOT");
     }
@@ -1499,8 +1512,8 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
         return AndroidConfigError.NdkPathNotFound;
     };
 
-    const host_os = builtin.os.tag;
-    const host_arch = builtin.cpu.arch;
+    const host_os = builtin.target.os.tag;
+    const host_arch = builtin.target.cpu.arch;
     const os_name = switch (host_os) {
         .windows => "windows",
         .linux => "linux",
@@ -1520,7 +1533,7 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
             return AndroidConfigError.UnsupportedHostArchitecture;
         },
     };
-    const host_tag = std.fmt.allocPrint(b.allocator, "{s}-{s}", .{ os_name, arch_name }) catch {
+    const host_tag = b.allocator.print("{s}-{s}", .{ os_name, arch_name }) catch {
         return AndroidConfigError.OutOfMemory;
     };
     defer b.allocator.free(host_tag);
@@ -1588,8 +1601,6 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
         .include_dir = include_path,
         .sys_include_dir = system_include_path,
         .crt_dir = lib_path,
-        // Zig 0.17 rejects an empty cc_dir for Linux targets. The NDK has no
-        // GCC directory; its crtbegin_so.o lives alongside the CRT objects.
         .cc_dir = lib_path,
     };
 
