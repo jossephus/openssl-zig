@@ -1,10 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-fn pickNdkFromSdkRoot(allocator: std.mem.Allocator, sdk_root: []const u8) !?[]const u8 {
+fn pickNdkFromSdkRoot(io: std.Io, allocator: std.mem.Allocator, sdk_root: []const u8) !?[]const u8 {
     const ndk_bundle = try std.fs.path.join(allocator, &.{ sdk_root, "ndk-bundle" });
     errdefer allocator.free(ndk_bundle);
-    if (std.fs.accessAbsolute(ndk_bundle, .{})) |_| {
+    if (std.Io.Dir.accessAbsolute(io, ndk_bundle, .{})) |_| {
         return ndk_bundle;
     } else |_| {
         allocator.free(ndk_bundle);
@@ -13,12 +13,12 @@ fn pickNdkFromSdkRoot(allocator: std.mem.Allocator, sdk_root: []const u8) !?[]co
     const ndk_dir_path = try std.fs.path.join(allocator, &.{ sdk_root, "ndk" });
     defer allocator.free(ndk_dir_path);
 
-    var ndk_dir = std.fs.openDirAbsolute(ndk_dir_path, .{ .iterate = true }) catch return null;
-    defer ndk_dir.close();
+    var ndk_dir = std.Io.Dir.openDirAbsolute(io, ndk_dir_path, .{ .iterate = true }) catch return null;
+    defer ndk_dir.close(io);
 
     var best: ?[]const u8 = null;
     var it = ndk_dir.iterate();
-    while (try it.next()) |entry| {
+    while (try it.next(io)) |entry| {
         if (entry.kind != .directory) continue;
         const candidate = try std.fs.path.join(allocator, &.{ ndk_dir_path, entry.name });
         if (best) |current| {
@@ -997,7 +997,7 @@ fn libcrypto(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.buil
         .flags = cflags,
     });
     lib.root_module.linkLibrary(try libprovider(b, target, optimize, android_api_level));
-    lib.linkLibC();
+    lib.root_module.link_libc = true;
     return lib;
 }
 
@@ -1117,7 +1117,7 @@ fn libssl(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin
         },
         .flags = cflags,
     });
-    lib.linkLibC();
+    lib.root_module.link_libc = true;
     return lib;
 }
 
@@ -1402,7 +1402,7 @@ fn libprovider(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.bu
         },
         .flags = cflags,
     });
-    lib.linkLibC();
+    lib.root_module.link_libc = true;
     return lib;
 }
 
@@ -1418,6 +1418,12 @@ const cflags = &.{
     "-Wmissing-variable-declarations",
     "-Wno-int-conversion",
 };
+
+/// Returns an owned copy so callers can free it uniformly with other NDK paths.
+fn envDupe(b: *std.Build, name: []const u8) error{OutOfMemory}!?[]const u8 {
+    const value = b.graph.environ_map.get(name) orelse return null;
+    return try b.allocator.dupe(u8, value);
+}
 
 const BuildInfo = struct {
     path: []const u8,
@@ -1459,41 +1465,25 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
         std.log.warn("API level {d} is very low, modern NDKs may not support it.", .{api_level_int});
     }
 
+    // Locating the NDK reads the environment and probes the filesystem at
+    // configure time, which the build cache cannot track.
+    b.graph.poisonCache();
+    const io = b.graph.io;
+
     var ndk_home: ?[]const u8 = null;
     errdefer if (ndk_home) |p| b.allocator.free(p);
 
-    ndk_home = std.process.getEnvVarOwned(b.allocator, "ANDROID_NDK_HOME") catch |err| switch (err) {
-        error.EnvironmentVariableNotFound => null,
-        error.InvalidWtf8 => {
-            std.log.err("Environment variable 'ANDROID_NDK_HOME' contains invalid UTF-8 encoding", .{});
-            return AndroidConfigError.InvalidNdkPathEncoding;
-        },
-        error.OutOfMemory => return AndroidConfigError.OutOfMemory,
-    };
+    ndk_home = try envDupe(b, "ANDROID_NDK_HOME");
     if (ndk_home == null) {
-        ndk_home = std.process.getEnvVarOwned(b.allocator, "ANDROID_NDK_ROOT") catch |err| switch (err) {
-            error.EnvironmentVariableNotFound => null,
-            error.InvalidWtf8 => {
-                std.log.err("Environment variable 'ANDROID_NDK_ROOT' contains invalid UTF-8 encoding", .{});
-                return AndroidConfigError.InvalidNdkPathEncoding;
-            },
-            error.OutOfMemory => return AndroidConfigError.OutOfMemory,
-        };
+        ndk_home = try envDupe(b, "ANDROID_NDK_ROOT");
     }
     if (ndk_home == null) {
-        const android_home = std.process.getEnvVarOwned(b.allocator, "ANDROID_HOME") catch |err| switch (err) {
-            error.EnvironmentVariableNotFound => {
-                std.log.err("Set one of: ANDROID_NDK_HOME, ANDROID_NDK_ROOT, or ANDROID_HOME", .{});
-                return AndroidConfigError.MissingNdkEnvironment;
-            },
-            error.InvalidWtf8 => {
-                std.log.err("Environment variable 'ANDROID_HOME' contains invalid UTF-8 encoding", .{});
-                return AndroidConfigError.InvalidNdkPathEncoding;
-            },
-            error.OutOfMemory => return AndroidConfigError.OutOfMemory,
+        const android_home = try envDupe(b, "ANDROID_HOME") orelse {
+            std.log.err("Set one of: ANDROID_NDK_HOME, ANDROID_NDK_ROOT, or ANDROID_HOME", .{});
+            return AndroidConfigError.MissingNdkEnvironment;
         };
         defer b.allocator.free(android_home);
-        ndk_home = pickNdkFromSdkRoot(b.allocator, android_home) catch |err| switch (err) {
+        ndk_home = pickNdkFromSdkRoot(io, b.allocator, android_home) catch |err| switch (err) {
             error.OutOfMemory => return AndroidConfigError.OutOfMemory,
             else => return AndroidConfigError.NdkPathNotFound,
         };
@@ -1504,7 +1494,7 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
     }
     defer b.allocator.free(ndk_home.?);
 
-    std.fs.accessAbsolute(ndk_home.?, .{}) catch {
+    std.Io.Dir.accessAbsolute(io, ndk_home.?, .{}) catch {
         std.log.err("NDK path not accessible: {s}", .{ndk_home.?});
         return AndroidConfigError.NdkPathNotFound;
     };
@@ -1551,10 +1541,10 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
     var sysroot_path = std.fs.path.join(b.allocator, &.{ resolved_ndk_home, "toolchains", "llvm", "prebuilt", host_tag, "sysroot" }) catch return AndroidConfigError.OutOfMemory;
     defer b.allocator.free(sysroot_path);
 
-    if (std.fs.accessAbsolute(sysroot_path, .{})) |_| {
+    if (std.Io.Dir.accessAbsolute(io, sysroot_path, .{})) |_| {
         // path is good
     } else |_| {
-        const auto_ndk = pickNdkFromSdkRoot(b.allocator, resolved_ndk_home) catch |err| switch (err) {
+        const auto_ndk = pickNdkFromSdkRoot(io, b.allocator, resolved_ndk_home) catch |err| switch (err) {
             error.OutOfMemory => return AndroidConfigError.OutOfMemory,
             else => return AndroidConfigError.NdkPathNotFound,
         };
@@ -1562,7 +1552,7 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
             resolved_ndk_home = new_ndk;
             b.allocator.free(sysroot_path);
             sysroot_path = std.fs.path.join(b.allocator, &.{ resolved_ndk_home, "toolchains", "llvm", "prebuilt", host_tag, "sysroot" }) catch return AndroidConfigError.OutOfMemory;
-            if (std.fs.accessAbsolute(sysroot_path, .{})) |_| {
+            if (std.Io.Dir.accessAbsolute(io, sysroot_path, .{})) |_| {
                 // recovered
             } else |_| {
                 std.log.err("Sysroot not found at: {s}", .{sysroot_path});
@@ -1598,6 +1588,9 @@ fn ConfigureAndroidEnvironment(b: *std.Build, compile: *std.Build.Step.Compile, 
         .include_dir = include_path,
         .sys_include_dir = system_include_path,
         .crt_dir = lib_path,
+        // Zig 0.17 rejects an empty cc_dir for Linux targets. The NDK has no
+        // GCC directory; its crtbegin_so.o lives alongside the CRT objects.
+        .cc_dir = lib_path,
     };
 
     libc_installation.render(&writer.writer) catch {
